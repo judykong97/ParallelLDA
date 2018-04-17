@@ -20,10 +20,10 @@ void readCorpus(vector<vector<int>> &w, string filename) {
         	result.push_back(i);
         	if (ss.peek() == ',')
             	ss.ignore();
-            cout << i << " ";
+            //cout << i << " ";
     	}
     	w.push_back(result);
-    	cout << endl;
+    	//cout << endl;
 	}
 }
 
@@ -39,7 +39,7 @@ int main() {
 	int numTopics = 20; // numTopics
 	double alpha = 0.1; // alpha
 	double beta = 0.1; // beta
-	int numIterations = 30; // numIterations
+	int numIterations = 2; // numIterations
 	// int numClocksPerIteration = 25; // numClocksPerIteration
 	// int staleness = 0; // staleness
 
