@@ -11,7 +11,10 @@ void runLDA(vector<vector<int>> w, vector<vector<int>> &z,
 	vector<vector<int>> wordTopicTable(numWords, vector<int>(numTopics, 1));
   	vector<int> topicTable(numTopics, 0);
 
-  	
+  	for (int i = 0; i < w.size(); i++) {
+  		vector<int> z_line(w[i].size(), 0);
+  		z.push_back(z_line);
+  	}
 
   	cout << docTopicTable.size() << endl;
   	cout << wordTopicTable.size() << endl;
