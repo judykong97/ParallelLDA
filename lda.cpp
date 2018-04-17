@@ -2,9 +2,22 @@
 #include <string>
 #include <vector>
 #include <cstdlib>
+#include <numeric>
 #include <cmath>
 
 using namespace std;
+
+/* Reference: taken from stackoverflow: 
+ * https://stackoverflow.com/questions/1577475/c-sorting-and-keeping-track-of-indexes
+ */
+template <typename T>
+vector<size_t> sort_indexes(const vector<T> &v) {
+  vector<size_t> idx(v.size());
+  iota(idx.begin(), idx.end(), 0);
+  sort(idx.begin(), idx.end(),
+       [&v](size_t i1, size_t i2) {return v[i1] > v[i2];});
+  return idx;
+}
 
 inline double logDirichlet_const(double alpha, int k) {
     return k * lgamma(alpha) - lgamma(k * alpha);
@@ -68,35 +81,9 @@ void runLDA(vector<vector<int>> w, vector<vector<int>> &z,
   		}
   	}
 
-  	// for (int d = 0; d < numDocs; d++) {
-  	// 	for (int t = 0; t < numTopics; t++) {
-  	// 		cout << docTopicTable[d][t] << " ";
-  	// 	}
-  	// 	cout << endl;
-  	// }
-
-  	// for (int d = 0; d < numWords; d++) {
-  	// 	for (int t = 0; t < numTopics; t++) {
-  	// 		cout << wordTopicTable[d][t] << " ";
-  	// 	}
-  	// 	cout << endl;
-  	// }
-
-
-
-  	// for (int t = 0; t < numTopics; t++) {
-  	// 	cout << topicTable[t] << " ";
-  	// }
-  	// cout << endl;
-
-  	// cout << docTopicTable.size() << endl;
-  	// cout << wordTopicTable.size() << endl;
-  	// cout << topicTable.size() << endl;
-	// cout << "LDA" << endl;
-
-    for(int i=0; i<numIterations; i++) {
-        for(int d=0; d<numDocs; d++) {
-            for(int j=0; j<w[d].size(); j++) {
+    for(int i = 0; i < numIterations; i++) {
+        for(int d = 0; d < numDocs; d++) {
+            for(int j = 0; j < w[d].size(); j++) {
                 int word = w[d][j];
                 int topic = z[d][j];
                 docTopicTable[d][topic]--;
@@ -105,7 +92,7 @@ void runLDA(vector<vector<int>> w, vector<vector<int>> &z,
 
                 double norm = 0.0;
                 int newk = topic;
-                for(int k = 0; k<numTopics; k++) {
+                for(int k = 0; k < numTopics; k++) {
                     int z_dj_equals_k = (k == topic);
                     double ak = docTopicTable[d][k] - z_dj_equals_k + alpha;
                     double bk = (wordTopicTable[word][k] - z_dj_equals_k + beta) / (topicTable[k] - z_dj_equals_k + numWords + beta);
@@ -128,14 +115,31 @@ void runLDA(vector<vector<int>> w, vector<vector<int>> &z,
                 topicTable[newk]++;
             }
         }
+
+        // Output log likelihood at each iteration
         double lik = getLogLikelihood(wordTopicTable, docTopicTable, alpha, beta);
         cout << lik << endl;
     }
 
-    // for (int d = 0; d < numDocs; d++) {
-    //  for (int j = 0; j < w[d].size(); j++) {
-    //      cout << z[d][j] << " ";
-    //  }
-    //  cout << endl;
-    // }
+    // Output top words for each topic
+    vector<string> vocab;
+    ifstream infile("./data/vocab.csv");
+    string line;
+    while (getline(infile, line))
+    {
+      vocab.push_back(line);
+    }
+    vector<vector<int>> outputTable(wordTopicTable[0].size(), vector<int>(wordTopicTable.size()));
+    for (int i = 0; i < wordTopicTable.size(); i++) {
+      for (int j = 0; j < wordTopicTable[0].size(); j++) {
+        outputTable[j][i] = wordTopicTable[i][j];
+      }
+    }
+    for (int t = 0; t < numTopics; t++) {
+      vector<size_t> v = sort_indexes(outputTable[t]);
+      for (int w = 0; w < 5; w++) {
+        cout << vocab[v[w]] << " ";
+      }
+      cout << endl;
+    }
 }
