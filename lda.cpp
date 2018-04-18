@@ -4,6 +4,8 @@
 #include <cstdlib>
 #include <numeric>
 #include <cmath>
+#include <ctime>
+
 
 using namespace std;
 
@@ -60,6 +62,9 @@ double getLogLikelihood(vector<vector<int>> wordTopicTable, vector<vector<int>> 
 void runLDA(vector<vector<int>> w, vector<vector<int>> &z, 
 	int numDocs, int numWords, int numTopics, double alpha, double beta, int numIterations) {
 
+  clock_t start;
+  double duration;
+
 	vector<vector<int>> docTopicTable(numDocs, vector<int>(numTopics, 0));
 	vector<vector<int>> wordTopicTable(numWords, vector<int>(numTopics, 1));
   	vector<int> topicTable(numTopics, 0);
@@ -82,6 +87,9 @@ void runLDA(vector<vector<int>> w, vector<vector<int>> &z,
   	}
 
     for(int i = 0; i < numIterations; i++) {
+
+        start = clock();
+
         for(int d = 0; d < numDocs; d++) {
             for(int j = 0; j < w[d].size(); j++) {
                 int word = w[d][j];
@@ -116,6 +124,8 @@ void runLDA(vector<vector<int>> w, vector<vector<int>> &z,
             }
         }
 
+        duration += (clock() - start) / (double)CLOCKS_PER_SEC;
+
         // Output log likelihood at each iteration
         double lik = getLogLikelihood(wordTopicTable, docTopicTable, alpha, beta);
         cout << lik << endl;
@@ -142,4 +152,7 @@ void runLDA(vector<vector<int>> w, vector<vector<int>> &z,
       }
       cout << endl;
     }
+
+    // Output duration of training
+    cout << "Duration of " << numIterations << " Iterations: " << duration << endl;
 }
