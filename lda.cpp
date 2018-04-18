@@ -104,19 +104,44 @@ void runLDA(vector<vector<int>> w, vector<vector<int>> &z,
                     int z_dj_equals_k = (k == topic);
                     double ak = docTopicTable[d][k] - z_dj_equals_k + alpha;
                     double bk = (wordTopicTable[word][k] - z_dj_equals_k + beta) / (topicTable[k] - z_dj_equals_k + numWords + beta);
-                    p[k] = ak * bk;
-                    norm += p[k];
+                    norm += ak * bk;
+                    p[k] = norm;
                 }
 
-                double sum_p_up_to_k = 0.0;
-                double r = ((double) rand()) / RAND_MAX;
-                for(int k = 0; k<numTopics; k++) {
-                    sum_p_up_to_k += p[k] / norm;
-                    if(r < sum_p_up_to_k) {
-                        newk = k;
+                double r = ((double) rand()) / RAND_MAX * norm;
+                int lo = 0;
+                int hi = numTopics - 1;
+                int mid;
+                while (lo < hi) {
+                    if (hi - lo < 10) {
+                        int i;
+                        for (i = lo; i <= hi; i++) {
+                            if (p[i] > r) {
+                                lo = i;
+                                hi = lo;
+                                break;
+                            }
+                        }
                         break;
+                    } else {
+                        mid = lo + (hi - lo)/2;
+                        if (r <= p[mid]) {
+                            hi = mid;
+                        } else {
+                            lo = mid + 1;
+                        }
                     }
                 }
+                newk = lo;
+                // double sum_p_up_to_k = 0.0;
+                // double r = ((double) rand()) / RAND_MAX;
+                // for(int k = 0; k < numTopics; k++) {
+                //     sum_p_up_to_k += p[k] / norm;
+                //     if(r < sum_p_up_to_k) {
+                //         newk = k;
+                //         break;
+                //     }
+                // }
                 z[d][j] = newk;
                 docTopicTable[d][newk]++;
                 wordTopicTable[word][newk]++;
@@ -139,8 +164,8 @@ void runLDA(vector<vector<int>> w, vector<vector<int>> &z,
     {
       vocab.push_back(line);
     }
-    vector<vector<int>> outputTable(wordTopicTable[0].size(), vector<int>(wordTopicTable.size()));
-    for (int i = 0; i < wordTopicTable.size(); i++) {
+    vector<vector<int>> outputTable(wordTopicTable[0].size(), vector<int>(numWords));
+    for (int i = 0; i < numWords; i++) {
       for (int j = 0; j < wordTopicTable[0].size(); j++) {
         outputTable[j][i] = wordTopicTable[i][j];
       }
