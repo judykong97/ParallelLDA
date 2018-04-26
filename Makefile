@@ -1,14 +1,14 @@
-CC=gcc
+CC=g++
 
 MPI=-DMPI
 MPICC = mpicc
 
 DEBUG=0
-CFLAGS=-g -O3 -Wall -DDEBUG=$(DEBUG)
+CFLAGS= -g -O3 -Wall -DDEBUG=$(DEBUG)
 LDFLAGS= -lm
 # DDIR = ./data
 
-# CFILES = crun.c graph.c simutil.c sim.c rutil.c cycletimer.c
+CFILES = main.cpp lda.cpp # crun.c graph.c simutil.c sim.c rutil.c cycletimer.c
 # HFILES = crun.h rutil.h cycletimer.h
 
 # GFILES = gengraph.py grun.py rutil.py sim.py viz.py  regress.py benchmark.py grade.py
@@ -22,8 +22,13 @@ LDFLAGS= -lm
 	$(DDIR)/r-4-d1.rats  $(DDIR)/r-4-u1.rats \
 	$(DDIR)/r-400-d10.rats $(DDIR)/r-400-u10.rats 
 
-all: main.cpp lda.cpp 
-	g++ -std=c++11 main.cpp -o lda
+all: lda lda-mpi
+	
+lda: $(CFILES)
+	$(CC) -std=c++11 -lstdc++ -o lda main.cpp $(LDFLAGS)
+
+lda-mpi: $(CFILES)
+	$(MPICC) -std=c++11 -lstdc++ -o lda-mpi main.cpp $(XCFILES) $(LDFLAGS)
 
 # all: crun crun-mpi
 
@@ -36,4 +41,6 @@ all: main.cpp lda.cpp
 # crun-mpi: $(CFILES) $(XCFILES) $(HFILES) $(XHFILES)
 # 	$(MPICC) $(CFLAGS) $(MPI) -o crun-mpi $(CFILES) $(XCFILES) $(LDFLAGS)
 
+clean:
+	rm -f lda lda-mpi
 

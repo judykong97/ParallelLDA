@@ -14,9 +14,7 @@ done;
 
 if [ $process == 1 ];
 then
-    echo "sequential"
     ./lda
 else 
-    echo "parallel"
-    mpirun -np $process ./lda
+    mpirun -np $process ./lda-mpi
 fi
