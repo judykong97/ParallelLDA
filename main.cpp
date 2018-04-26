@@ -1,13 +1,18 @@
+#ifndef MPI
+#define MPI 0
+#endif
+
+#if MPI
+#include <mpi.h>
+#endif
+
 #include <fstream>
 #include <sstream>
 #include <iostream>
 #include <string>
 #include <vector>
-#include "lda.cpp"
 
-#if MPI
-#include <mpi.h>
-#endif
+#include "lda.cpp"
 
 using namespace std;
 
@@ -58,6 +63,10 @@ int main(int argc, char *argv[]) {
     cout << "process count: " << process_count << endl;
 
 	runLDA(w, z, numDocs, numWords, numTopics, alpha, beta, numIterations);
+
+#if MPI
+    MPI_Finalize();
+#endif
 
 	return 0;
 }

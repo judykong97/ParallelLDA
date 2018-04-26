@@ -28,7 +28,7 @@ lda: $(CFILES)
 	$(CC) -std=c++11 -lstdc++ -o lda main.cpp $(LDFLAGS)
 
 lda-mpi: $(CFILES) $(XCFILES)
-	$(MPICC) -std=c++11 -lstdc++ $(MPI) -o lda-mpi main.cpp $(XCFILES) $(LDFLAGS)
+	$(MPICC) -std=c++11 -lstdc++ $(MPI) -DOMPI_SKIP_MPICXX -o lda-mpi main.cpp $(XCFILES) $(LDFLAGS)
 
 # all: crun crun-mpi
 
@@ -42,5 +42,6 @@ lda-mpi: $(CFILES) $(XCFILES)
 # 	$(MPICC) $(CFLAGS) $(MPI) -o crun-mpi $(CFILES) $(XCFILES) $(LDFLAGS)
 
 clean:
-	rm -f lda lda-mpi
+	rm -f lda 
+	rm -f lda-mpi
 
