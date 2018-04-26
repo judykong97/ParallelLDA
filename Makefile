@@ -1,7 +1,7 @@
 CC=g++
 
 MPI=-DMPI
-MPICC = mpicc
+MPICC = mpic++
 
 DEBUG=0
 CFLAGS= -g -O3 -Wall -DDEBUG=$(DEBUG)
@@ -27,8 +27,8 @@ all: lda lda-mpi
 lda: $(CFILES)
 	$(CC) -std=c++11 -lstdc++ -o lda main.cpp $(LDFLAGS)
 
-lda-mpi: $(CFILES)
-	$(MPICC) -std=c++11 -lstdc++ -o lda-mpi main.cpp $(XCFILES) $(LDFLAGS)
+lda-mpi: $(CFILES) $(XCFILES)
+	$(MPICC) -std=c++11 -lstdc++ $(MPI) -o lda-mpi main.cpp $(XCFILES) $(LDFLAGS)
 
 # all: crun crun-mpi
 
