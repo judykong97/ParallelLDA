@@ -83,7 +83,9 @@ void runLDA(int *w, int *w_start,
     globalT = (int*) calloc(numTopics, sizeof(int));
 #endif
 
-    memset(z, -1, sizeof(int) * TOTAL_WORDS);
+    // memset(z, -1, sizeof(int) * TOTAL_WORDS);
+    // for (int i = 0; i < TOTAL_WORDS; i++) z[i] = -1;
+    for (int i = 0; i < numWords * numTopics; i++) wordTopicTable[i] = 1;
     // memset(docTopicTable, 0, sizeof(int) * numDocs * numTopics);
     // memset(wordTopicTable, 0, sizeof(int) * numWords * numTopics);
     // memset(topicTable, 0, sizeof(int) * numTopics);
@@ -124,8 +126,10 @@ void runLDA(int *w, int *w_start,
                 int topic = z[j];
                 int woffset = word * numTopics;
                 docTopicTable[doffset + topic]--;
-                updateW[woffset + topic]--; // wordTopicTable[woffset + topic]--;
-                updateT[topic]--; // topicTable[topic]--;
+                updateW[woffset + topic]--; 
+                // wordTopicTable[woffset + topic]--;
+                updateT[topic]--; 
+                // topicTable[topic]--;
 
                 double norm = 0.0;
                 int newk = topic;
@@ -173,8 +177,10 @@ void runLDA(int *w, int *w_start,
                 // }
                 z[j] = newk;
                 docTopicTable[doffset + newk]++;
-                updateW[woffset + newk]++; // wordTopicTable[woffset + newk]++;
-                updateT[newk]++; // topicTable[newk]++;
+                updateW[woffset + newk]++; 
+                // wordTopicTable[woffset + newk]++;
+                updateT[newk]++;
+                // topicTable[newk]++;
             }
         }
 
@@ -200,10 +206,18 @@ void runLDA(int *w, int *w_start,
         duration += (clock() - start) / (double)CLOCKS_PER_SEC;
 
         // Output log likelihood at each iteration
-        if (mpi_master) {
+        // if (mpi_master) {
             double lik = getLogLikelihood(wordTopicTable, docTopicTable, alpha, beta, numWords, numDocs, numTopics);
-            cout << lik << endl;
+        //    cout << lik << endl;
+        // }
+        double global_lik = lik;
+#if MPI
+        MPI_Reduce(&lik, &global_lik, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+#endif
+        if (mpi_master) {
+            cout << global_lik << endl;
         }
+
     }
 
     if (mpi_master) {
