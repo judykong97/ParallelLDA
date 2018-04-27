@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
 	int numTopics = NUM_TOPICS;
 	double alpha = 0.1; // alpha
 	double beta = 0.1; // beta
-	int numIterations = 1000; // numIterations
+	int numIterations = 100; // numIterations
 	// int numClocksPerIteration = 25; // numClocksPerIteration
 	// int staleness = 0; // staleness
 

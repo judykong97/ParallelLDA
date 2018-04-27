@@ -36,7 +36,7 @@ double logDirichlet_vector(vector<double> alpha) {
     return sumLogGamma - lgamma(logSumGamma);
 }
 
-double getLogLikelihood(int* wordTopicTable, int* docTopicTable, double alpha, double beta, int numWords, int numDocs, int numTopics) {
+double getLogLikelihood(int* wordTopicTable, int* docTopicTable, double alpha, double beta, int numWords, int numDocs, int numTopics, int process_id, int process_count) {
     double lik = 0.0;
     // int numWords = wordTopicTable.size();
     // int numDocs = docTopicTable.size();
@@ -50,7 +50,7 @@ double getLogLikelihood(int* wordTopicTable, int* docTopicTable, double alpha, d
         lik -= logDirichlet_const(beta, numWords);
     }
     vector<double> temp2(numTopics, 0.0);
-    for (int d = 0; d < numDocs; d++) {
+    for (int d = process_id; d < numDocs; d+=process_count) {
         int offset = d * numTopics;
         for (int k = 0; k < numTopics; k++) {
             temp2[k] = alpha + docTopicTable[offset + k];
@@ -85,7 +85,7 @@ void runLDA(int *w, int *w_start,
 
     // memset(z, -1, sizeof(int) * TOTAL_WORDS);
     // for (int i = 0; i < TOTAL_WORDS; i++) z[i] = -1;
-    for (int i = 0; i < numWords * numTopics; i++) wordTopicTable[i] = 1;
+    //for (int i = 0; i < numWords * numTopics; i++) wordTopicTable[i] = 1;
     // memset(docTopicTable, 0, sizeof(int) * numDocs * numTopics);
     // memset(wordTopicTable, 0, sizeof(int) * numWords * numTopics);
     // memset(topicTable, 0, sizeof(int) * numTopics);
@@ -140,7 +140,7 @@ void runLDA(int *w, int *w_start,
                     norm += ak * bk;
                     p[k] = norm;
                 }
-
+/*
                 double r = ((double) rand()) / RAND_MAX * norm;
                 int lo = 0;
                 int hi = numTopics - 1;
@@ -166,15 +166,16 @@ void runLDA(int *w, int *w_start,
                     }
                 }
                 newk = lo;
-                // double sum_p_up_to_k = 0.0;
-                // double r = ((double) rand()) / RAND_MAX;
-                // for(int k = 0; k < numTopics; k++) {
-                //     sum_p_up_to_k += p[k] / norm;
-                //     if(r < sum_p_up_to_k) {
-                //         newk = k;
-                //         break;
-                //     }
-                // }
+                */
+                double sum_p_up_to_k = 0.0;
+                double r = ((double) rand()) / RAND_MAX;
+                for(int k = 0; k < numTopics; k++) {
+                    sum_p_up_to_k += p[k] / norm;
+                    if(r < sum_p_up_to_k) {
+                        newk = k;
+                        break;
+                    }
+                }
                 z[j] = newk;
                 docTopicTable[doffset + newk]++;
                 updateW[woffset + newk]++; 
@@ -207,11 +208,12 @@ void runLDA(int *w, int *w_start,
 
         // Output log likelihood at each iteration
         // if (mpi_master) {
-            double lik = getLogLikelihood(wordTopicTable, docTopicTable, alpha, beta, numWords, numDocs, numTopics);
+            double lik = getLogLikelihood(wordTopicTable, docTopicTable, alpha, beta, numWords, numDocs, numTopics, process_id, process_count);
         //    cout << lik << endl;
         // }
         double global_lik = lik;
 #if MPI
+        global_lik = 0;
         MPI_Reduce(&lik, &global_lik, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 #endif
         if (mpi_master) {
