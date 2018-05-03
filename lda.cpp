@@ -62,7 +62,7 @@ double getLogLikelihood(int* wordTopicTable, int* docTopicTable, double alpha, d
 }
 
 void runLDA(int *w, int *w_start, 
-        int numDocs, int numWords, int numTopics, double alpha, double beta, int numIterations, int process_id, int process_count) {
+        int numDocs, int numWords, int numTopics, double alpha, double beta, int numIterations, int staleness, int process_id, int process_count) {
 
     clock_t start;
     double duration;
@@ -77,6 +77,8 @@ void runLDA(int *w, int *w_start,
     int* updateT = (int*) calloc(numTopics, sizeof(int));
     int* globalW;
     int* globalT;
+
+    int iter = 0;
 
 #if MPI
     globalW = (int*) calloc(numWords * numTopics, sizeof(int));
@@ -116,8 +118,10 @@ void runLDA(int *w, int *w_start,
 
         start = clock();
 
-        memset(updateW, 0, sizeof(int) * numWords * numTopics);
-        memset(updateT, 0, sizeof(int) * numTopics);
+        if (staleness > 1 && iter % staleness == 0) {
+            memset(updateW, 0, sizeof(int) * numWords * numTopics);
+            memset(updateT, 0, sizeof(int) * numTopics);
+        }
 
         for (int d = process_id; d < numDocs; d += process_count) {
             int doffset = d * numTopics;
@@ -186,6 +190,12 @@ void runLDA(int *w, int *w_start,
         }
 
 #if MPI
+        iter++;
+        if (iter % staleness > 0) {
+            duration += (clock() - start) / (double)CLOCKS_PER_SEC;
+            continue;
+        }
+
         MPI_Reduce(updateW, globalW, numWords * numTopics, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
         MPI_Reduce(updateT, globalT, numTopics, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 #else 
@@ -208,7 +218,7 @@ void runLDA(int *w, int *w_start,
 
         // Output log likelihood at each iteration
         // if (mpi_master) {
-            double lik = getLogLikelihood(wordTopicTable, docTopicTable, alpha, beta, numWords, numDocs, numTopics, process_id, process_count);
+        double lik = getLogLikelihood(wordTopicTable, docTopicTable, alpha, beta, numWords, numDocs, numTopics, process_id, process_count);
         //    cout << lik << endl;
         // }
         double global_lik = lik;
