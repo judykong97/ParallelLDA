@@ -7,13 +7,14 @@
 #include <cmath>
 #include <ctime>
 #include <string.h>
-
+#include "lda_utils.cpp"
 
 using namespace std;
 
 /* Reference: taken from stackoverflow: 
  * https://stackoverflow.com/questions/1577475/c-sorting-and-keeping-track-of-indexes
  */
+/*
 template <typename T>
 vector<size_t> sort_indexes(const vector<T> &v) {
     vector<size_t> idx(v.size());
@@ -60,6 +61,7 @@ double getLogLikelihood(int* wordTopicTable, int* docTopicTable, double alpha, d
     }
     return lik;
 }
+*/
 
 void runLDA(int *w, int *w_start, 
         int numDocs, int numWords, int numTopics, double alpha, double beta, int numIterations, int staleness, int process_id, int process_count) {
@@ -118,7 +120,7 @@ void runLDA(int *w, int *w_start,
 
         start = clock();
 
-        if (staleness > 1 && iter % staleness == 0) {
+        if (staleness == 1 || (staleness > 1 && iter % staleness == 0)) {
             memset(updateW, 0, sizeof(int) * numWords * numTopics);
             memset(updateT, 0, sizeof(int) * numTopics);
         }

@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
     
     bool mpi_master = process_id == 0;
     if (mpi_master) {
-        cout << "process count: " << process_count << endl;
+        cout << "Number of Processes: " << process_count << endl;
     }
 
 	// vector<vector<int>> w, z;
@@ -78,11 +78,13 @@ int main(int argc, char *argv[]) {
 	int numTopics = NUM_TOPICS;
 	double alpha = 0.1; // alpha
 	double beta = 0.1; // beta
-	int numIterations = 1000; // numIterations
+	int numIterations = atoi(argv[1]); // = 1000; // numIterations
 	// int numClocksPerIteration = 25; // numClocksPerIteration
-	int staleness = 2; // staleness
+	int staleness = atoi(argv[2]); // = 2; // staleness
 
     if (mpi_master) {
+        cout << "Number of Iterations: " << numIterations << endl;
+        cout << "Staleness: " << staleness << endl;
 	    string filename = "20news.csv";
 	    readCorpus(w, w_start, "./data/" + filename, process_id, process_count);
     }
