@@ -95,7 +95,7 @@ int main(int argc, char *argv[]) {
     MPI_Bcast(w_start, NUM_DOCS + 1, MPI_INT, 0, MPI_COMM_WORLD);
 #endif
 
-	runLDA(w, w_start, totalWords, numDocs, numWords, numTopics, alpha, beta, numIterations, staleness, process_id, process_count);
+	runLDAAsync(w, w_start, totalWords, numDocs, numWords, numTopics, alpha, beta, numIterations, staleness, process_id, process_count);
 
 #if MPI
     MPI_Finalize();

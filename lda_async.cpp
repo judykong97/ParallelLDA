@@ -13,59 +13,7 @@
 
 using namespace std;
 
-/* Reference: taken from stackoverflow: 
- * https://stackoverflow.com/questions/1577475/c-sorting-and-keeping-track-of-indexes
- */
-/*
-template <typename T>
-vector<size_t> sort_indexes(const vector<T> &v) {
-    vector<size_t> idx(v.size());
-    iota(idx.begin(), idx.end(), 0);
-    sort(idx.begin(), idx.end(),[&v](size_t i1, size_t i2) {return v[i1] > v[i2];});
-    return idx;
-}
-
-inline double logDirichlet_const(double alpha, int k) {
-    return k * lgamma(alpha) - lgamma(k * alpha);
-}
-
-double logDirichlet_vector(vector<double> alpha) {
-    double sumLogGamma = 0.0;
-    double logSumGamma = 0.0;
-    for(int i = 0; i < alpha.size(); i++) {
-        sumLogGamma += lgamma(alpha[i]);
-        logSumGamma += alpha[i];
-    }
-    return sumLogGamma - lgamma(logSumGamma);
-}
-
-double getLogLikelihood(int* wordTopicTable, int* docTopicTable, double alpha, double beta, int numWords, int numDocs, int numTopics, int process_id, int process_count) {
-    double lik = 0.0;
-    // int numWords = wordTopicTable.size();
-    // int numDocs = docTopicTable.size();
-    // int numTopics = docTopicTable[0].size();
-    vector<double> temp(numWords, 0.0);
-    for (int k = 0; k < numTopics; k++) {
-        for (int w = 0; w < numWords; w++) {
-            temp[w] = beta + wordTopicTable[w * numTopics + k];
-        }
-        lik += logDirichlet_vector(temp);
-        lik -= logDirichlet_const(beta, numWords);
-    }
-    vector<double> temp2(numTopics, 0.0);
-    for (int d = process_id; d < numDocs; d+=process_count) {
-        int offset = d * numTopics;
-        for (int k = 0; k < numTopics; k++) {
-            temp2[k] = alpha + docTopicTable[offset + k];
-        }
-        lik += logDirichlet_vector(temp2);
-        lik -= logDirichlet_const(alpha, numTopics);
-    }
-    return lik;
-}
-*/
-
-void runLDA(int *w, int *w_start, 
+void runLDAAsync(int *w, int *w_start, 
         int totalWords, int numDocs, int numWords, int numTopics, double alpha, double beta, int numIterations, int staleness, int process_id, int process_count) {
 
     clock_t start;
@@ -87,6 +35,8 @@ void runLDA(int *w, int *w_start,
 #if MPI
     globalW = (int*) calloc(numWords * numTopics, sizeof(int));
     globalT = (int*) calloc(numTopics, sizeof(int));
+
+    int* num_rec = (int*) calloc(process_count, sizeof(int));
 #endif
 
     // memset(z, -1, sizeof(int) * TOTAL_WORDS);
@@ -200,22 +150,76 @@ void runLDA(int *w, int *w_start,
             continue;
         }
 
-        MPI_Reduce(updateW, globalW, numWords * numTopics, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-        MPI_Reduce(updateT, globalT, numTopics, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+        MPI_Request wreqs[process_count - 1];
+        MPI_Request treqs[process_count - 1];
+        MPI_Status wstats[process_count - 1];
+        MPI_Status tstats[process_count - 1];
+        if (!mpi_master) {
+            MPI_Isend(updateW, numWords * numTopics, MPI_INT, 0, 1, MPI_COMM_WORLD, &wreqs[process_id - 1]);
+            MPI_Isend(updateT, numTopics, MPI_INT, 0, 2, MPI_COMM_WORLD, &treqs[process_id - 1]);
+            MPI_Recv(wordTopicTable, numWords * numTopics, MPI_INT, 0, 1, MPI_COMM_WORLD, &wstats[process_id - 1]);
+            MPI_Recv(topicTable, numTopics, MPI_INT, 0, 2, MPI_COMM_WORLD, &tstats[process_id - 1]);
+        } else {
+
+            for (int j = 0; j < numWords * numTopics; j++) {
+                wordTopicTable[i] += updateW[j];
+            }
+            for (int j = 0; j < numTopics; j++) {
+                topicTable[j] += updateT[j];
+            }
+
+            memset(num_rec, 0, process_count * sizeof(int));
+            MPI_Request update_reqs[2 * process_count - 2];
+
+            int received_count = 0;
+            while (received_count < 2 * process_count - 2) {
+                for (int i = 1; i < process_count; i++) {
+                    if (num_rec[i] < 2) {
+                        int flag = 0;
+                        MPI_Status status;
+                        MPI_Request request;
+                        MPI_Iprobe(i, 1, MPI_COMM_WORLD, &flag, &status);
+                        if (flag) {
+                            received_count++;
+                            num_rec[i]++;
+                            MPI_Recv(updateW, numWords * numTopics, MPI_INT, i, 1, MPI_COMM_WORLD, &status);
+                            for (int j = 0; j < numWords * numTopics; j++) {
+                                wordTopicTable[j] += updateW[j];
+                            }
+                        }
+                    }
+                    if (num_rec[i] < 2) {
+                        int flag = 0;
+                        MPI_Status status;
+                        MPI_Request request;
+                        MPI_Iprobe(i, 2, MPI_COMM_WORLD, &flag, &status);
+                        if (flag) {
+                            received_count++;
+                            num_rec[i]++;
+                            MPI_Recv(updateT, numTopics, MPI_INT, i, 2, MPI_COMM_WORLD, &status);
+                            for (int j = 0; j < numTopics; j++) {
+                                topicTable[j] += updateT[j];
+                            }
+                        }
+                    }
+                    if (num_rec[i] == 2) {
+                        MPI_Isend(wordTopicTable, numWords * numTopics, MPI_INT, i, 1, MPI_COMM_WORLD, &update_reqs[i * 2 - 2]);
+                        MPI_Isend(topicTable, numTopics, MPI_INT, i, 2, MPI_COMM_WORLD, &update_reqs[i * 2 - 1]);
+                    }
+                    if (received_count == 2 * process_count - 2) break; 
+                }
+            }
+        }
+        
 #else 
         globalW = updateW;
         globalT = updateT;
-#endif
         for (int i = 0; i < numWords * numTopics; i++) {
             wordTopicTable[i] += globalW[i];
         }
         for (int i = 0; i < numTopics; i++) {
             topicTable[i] += globalT[i];
         }
-
-#if MPI
-        MPI_Bcast(wordTopicTable, numWords * numTopics, MPI_INT, 0, MPI_COMM_WORLD);
-        MPI_Bcast(topicTable, numTopics, MPI_INT, 0, MPI_COMM_WORLD);
 #endif
 
         duration += (clock() - start) / (double)CLOCKS_PER_SEC;
@@ -226,10 +230,12 @@ void runLDA(int *w, int *w_start,
         //    cout << lik << endl;
         // }
         double global_lik = lik;
+
 #if MPI
         global_lik = 0;
         MPI_Reduce(&lik, &global_lik, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 #endif
+
         if (mpi_master) {
             cout << global_lik << endl;
         }
@@ -273,6 +279,7 @@ void runLDA(int *w, int *w_start,
 #if MPI
     free(globalW);
     free(globalT);
+    free(num_rec);
 #endif
 
 }

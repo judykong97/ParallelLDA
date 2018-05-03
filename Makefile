@@ -8,7 +8,7 @@ CFLAGS= -g -O3 -Wall -DDEBUG=$(DEBUG)
 LDFLAGS= -lm
 # DDIR = ./data
 
-CFILES = main.cpp lda.cpp lda_utils.cpp # crun.c graph.c simutil.c sim.c rutil.c cycletimer.c
+CFILES = main.cpp lda.cpp lda_sync.cpp lda_async.cpp lda_utils.cpp # crun.c graph.c simutil.c sim.c rutil.c cycletimer.c
 HFILES = lda.h lda_utils.h # HFILES = crun.h rutil.h cycletimer.h
 
 # GFILES = gengraph.py grun.py rutil.py sim.py viz.py  regress.py benchmark.py grade.py
