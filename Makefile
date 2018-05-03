@@ -8,8 +8,8 @@ CFLAGS= -g -O3 -Wall -DDEBUG=$(DEBUG)
 LDFLAGS= -lm
 # DDIR = ./data
 
-CFILES = main.cpp lda.cpp # crun.c graph.c simutil.c sim.c rutil.c cycletimer.c
-# HFILES = crun.h rutil.h cycletimer.h
+CFILES = main.cpp lda.cpp lda_utils.cpp # crun.c graph.c simutil.c sim.c rutil.c cycletimer.c
+HFILES = lda.h lda_utils.h # HFILES = crun.h rutil.h cycletimer.h
 
 # GFILES = gengraph.py grun.py rutil.py sim.py viz.py  regress.py benchmark.py grade.py
 
@@ -24,11 +24,11 @@ CFILES = main.cpp lda.cpp # crun.c graph.c simutil.c sim.c rutil.c cycletimer.c
 
 all: lda lda-mpi
 	
-lda: $(CFILES)
-	$(CC) -std=c++11 -lstdc++ -o lda main.cpp $(LDFLAGS)
+lda: $(CFILES) $(HFILES)
+	$(CC) -std=c++11 -lstdc++ -o lda $(CFILES) $(LDFLAGS)
 
-lda-mpi: $(CFILES) $(XCFILES)
-	$(MPICC) -std=c++11 -lstdc++ $(MPI) -DOMPI_SKIP_MPICXX -o lda-mpi main.cpp $(XCFILES) $(LDFLAGS)
+lda-mpi: $(CFILES) $(HFILES) $(XCFILES) $(XHFILES)
+	$(MPICC) -std=c++11 -lstdc++ $(MPI) -DOMPI_SKIP_MPICXX -o lda-mpi $(CFILES) $(XCFILES) $(LDFLAGS)
 
 # all: crun crun-mpi
 

@@ -1,3 +1,12 @@
+#ifndef MPI
+#define MPI 0
+#endif
+
+#if MPI
+#include <mpi.h>
+#endif
+
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -7,7 +16,8 @@
 #include <cmath>
 #include <ctime>
 #include <string.h>
-#include "lda_utils.cpp"
+#include "lda_utils.h"
+#include "lda.h"
 
 using namespace std;
 
@@ -64,12 +74,12 @@ double getLogLikelihood(int* wordTopicTable, int* docTopicTable, double alpha, d
 */
 
 void runLDA(int *w, int *w_start, 
-        int numDocs, int numWords, int numTopics, double alpha, double beta, int numIterations, int staleness, int process_id, int process_count) {
+        int totalWords, int numDocs, int numWords, int numTopics, double alpha, double beta, int numIterations, int staleness, int process_id, int process_count) {
 
     clock_t start;
     double duration;
 
-    int* z = (int*) calloc(TOTAL_WORDS, sizeof(int));
+    int* z = (int*) calloc(totalWords, sizeof(int));
     int* docTopicTable = (int*) calloc(numDocs * numTopics, sizeof(int));
     int* wordTopicTable = (int*) calloc(numWords * numTopics, sizeof(int)); // vector<vector<int>> wordTopicTable(numWords, vector<int>(numTopics, 1));
     int* topicTable = (int*) calloc(numTopics, sizeof(int)); // vector<int> topicTable(numTopics, 0);

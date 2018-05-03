@@ -17,7 +17,7 @@
 #define NUM_WORDS 60057
 #define NUM_TOPICS 20
 
-#include "lda.cpp"
+#include "lda.h"
 
 using namespace std;
 
@@ -73,6 +73,7 @@ int main(int argc, char *argv[]) {
     int* w = (int*)calloc(TOTAL_WORDS, sizeof(int));
     // int z[TOTAL_WORDS];
     int* w_start = (int*)calloc(NUM_DOCS + 1, sizeof(int));
+    int totalWords = TOTAL_WORDS;
 	int numDocs = NUM_DOCS;
 	int numWords = NUM_WORDS;
 	int numTopics = NUM_TOPICS;
@@ -94,7 +95,7 @@ int main(int argc, char *argv[]) {
     MPI_Bcast(w_start, NUM_DOCS + 1, MPI_INT, 0, MPI_COMM_WORLD);
 #endif
 
-	runLDA(w, w_start, numDocs, numWords, numTopics, alpha, beta, numIterations, staleness, process_id, process_count);
+	runLDA(w, w_start, totalWords, numDocs, numWords, numTopics, alpha, beta, numIterations, staleness, process_id, process_count);
 
 #if MPI
     MPI_Finalize();

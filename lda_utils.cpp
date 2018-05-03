@@ -8,12 +8,14 @@
 #include <ctime>
 #include <string.h>
 
+#include "lda_utils.h"
 
 using namespace std;
 
 /* Reference: taken from stackoverflow: 
  * https://stackoverflow.com/questions/1577475/c-sorting-and-keeping-track-of-indexes
  */
+/*
 template <typename T>
 vector<size_t> sort_indexes(const vector<T> &v) {
     vector<size_t> idx(v.size());
@@ -21,6 +23,7 @@ vector<size_t> sort_indexes(const vector<T> &v) {
     sort(idx.begin(), idx.end(),[&v](size_t i1, size_t i2) {return v[i1] > v[i2];});
     return idx;
 }
+*/
 
 inline double logDirichlet_const(double alpha, int k) {
     return k * lgamma(alpha) - lgamma(k * alpha);
