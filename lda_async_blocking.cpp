@@ -13,9 +13,7 @@
 
 using namespace std;
 
-// int bar_count = 0;
-
-void runLDAAsync(int *w, int *w_start, 
+void runLDAAsyncBlocking(int *w, int *w_start, 
         int totalWords, int numDocs, int numWords, int numTopics, double alpha, double beta, int numIterations, int staleness, int process_id, int process_count) {
 
     clock_t start;
@@ -23,42 +21,25 @@ void runLDAAsync(int *w, int *w_start,
 
     int* z = (int*) calloc(totalWords, sizeof(int));
     int* docTopicTable = (int*) calloc(numDocs * numTopics, sizeof(int));
-    int* wordTopicTable = (int*) calloc(numWords * numTopics, sizeof(int)); // vector<vector<int>> wordTopicTable(numWords, vector<int>(numTopics, 1));
-    int* topicTable = (int*) calloc(numTopics, sizeof(int)); // vector<int> topicTable(numTopics, 0);
-    double* p = (double*) calloc(numTopics, sizeof(double)); // vector<double> p(numTopics, 0.0);
+    int* wordTopicTable = (int*) calloc(numWords * numTopics, sizeof(int));    
+    int* topicTable = (int*) calloc(numTopics, sizeof(int));
+    double* p = (double*) calloc(numTopics, sizeof(double));
 
     int* updateW = (int*) calloc(numWords * numTopics, sizeof(int));
     int* updateT = (int*) calloc(numTopics, sizeof(int));
     int* globalW;
     int* globalT;
 
-    int numWordTopic = numWords * numTopics;
-
     int iter = 0;
 
 #if MPI
-    globalW = (int*) calloc(numWordTopic, sizeof(int));
+    globalW = (int*) calloc(numWords * numTopics, sizeof(int));
     globalT = (int*) calloc(numTopics, sizeof(int));
 
     int* num_rec = (int*) calloc(process_count, sizeof(int));
 #endif
 
-    // memset(z, -1, sizeof(int) * TOTAL_WORDS);
-    // for (int i = 0; i < TOTAL_WORDS; i++) z[i] = -1;
-    //for (int i = 0; i < numWords * numTopics; i++) wordTopicTable[i] = 1;
-    // memset(docTopicTable, 0, sizeof(int) * numDocs * numTopics);
-    // memset(wordTopicTable, 0, sizeof(int) * numWords * numTopics);
-    // memset(topicTable, 0, sizeof(int) * numTopics);
-    // memset(p, 0.0, sizeof(double) * numTopics);
-
     int mpi_master = process_id == 0;
-
-    /*
-    for (int i = 0; i < numDocs; i++) { // numDocs = w.size();
-        vector<int> z_line(w[i].size(), -1);
-        z.push_back(z_line);
-    }
-    */
 
     for (int d = process_id; d < numDocs; d += process_count) {
         int doffset = d * numTopics;
@@ -79,7 +60,7 @@ void runLDAAsync(int *w, int *w_start,
         start = clock();
 
         if (staleness == 1 || (staleness > 1 && iter % staleness == 0)) {
-            memset(updateW, 0, sizeof(int) * numWordTopic);
+            memset(updateW, 0, sizeof(int) * numWords * numTopics);
             memset(updateT, 0, sizeof(int) * numTopics);
         }
 
@@ -91,9 +72,7 @@ void runLDAAsync(int *w, int *w_start,
                 int woffset = word * numTopics;
                 docTopicTable[doffset + topic]--;
                 updateW[woffset + topic]--; 
-                // wordTopicTable[woffset + topic]--;
                 updateT[topic]--; 
-                // topicTable[topic]--;
 
                 double norm = 0.0;
                 int newk = topic;
@@ -104,33 +83,7 @@ void runLDAAsync(int *w, int *w_start,
                     norm += ak * bk;
                     p[k] = norm;
                 }
-/*
-                double r = ((double) rand()) / RAND_MAX * norm;
-                int lo = 0;
-                int hi = numTopics - 1;
-                int mid;
-                while (lo < hi) {
-                    if (hi - lo < 10) {
-                        int i;
-                        for (i = lo; i <= hi; i++) {
-                            if (p[i] > r) {
-                                lo = i;
-                                hi = lo;
-                                break;
-                            }
-                        }
-                        break;
-                    } else {
-                        mid = lo + (hi - lo)/2;
-                        if (r <= p[mid]) {
-                            hi = mid;
-                        } else {
-                            lo = mid + 1;
-                        }
-                    }
-                }
-                newk = lo;
-                */
+                
                 double sum_p_up_to_k = 0.0;
                 double r = ((double) rand()) / RAND_MAX;
                 for(int k = 0; k < numTopics; k++) {
@@ -143,9 +96,7 @@ void runLDAAsync(int *w, int *w_start,
                 z[j] = newk;
                 docTopicTable[doffset + newk]++;
                 updateW[woffset + newk]++; 
-                // wordTopicTable[woffset + newk]++;
                 updateT[newk]++;
-                // topicTable[newk]++;
             }
         }
 
@@ -156,33 +107,19 @@ void runLDAAsync(int *w, int *w_start,
             continue;
         }
 
-        // cout << process_id << " " << curr_updated << " " << bar_count << endl;
-        // if (!mpi_master) {
-        //     while (curr_updated && bar_count < process_count - 1);
-        // }
-        // MPI_Barrier(MPI_COMM_WORLD);
-        
-        /*
-        if (bar_count == process_count - 1) {
-            bar_count = 0;
-            curr_updated = 0;
-        }
-        */
-
         MPI_Request wreqs[process_count - 1];
         MPI_Request treqs[process_count - 1];
         MPI_Request reqs[2 * process_count - 2];
         MPI_Status stats[2 * process_count - 2];
         if (!mpi_master) {
-            MPI_Isend(updateW, numWordTopic, MPI_INT, 0, 1, MPI_COMM_WORLD, &wreqs[process_id - 1]);
+            MPI_Isend(updateW, numWords * numTopics, MPI_INT, 0, 1, MPI_COMM_WORLD, &wreqs[process_id - 1]);
             MPI_Isend(updateT, numTopics, MPI_INT, 0, 2, MPI_COMM_WORLD, &treqs[process_id - 1]);
-            MPI_Irecv(wordTopicTable, numWordTopic, MPI_INT, 0, 1, MPI_COMM_WORLD, &reqs[2 * process_id - 2]);
+            MPI_Irecv(wordTopicTable, numWords * numTopics, MPI_INT, 0, 1, MPI_COMM_WORLD, &reqs[2 * process_id - 2]);
             MPI_Irecv(topicTable, numTopics, MPI_INT, 0, 2, MPI_COMM_WORLD, &reqs[2 * process_id - 1]);
             MPI_Waitall(2, reqs + 2 * process_id - 2, stats + 2 * process_id - 2);
-            // curr_updated = 1;
         } else {
 
-            for (int j = 0; j < numWordTopic; j++) {
+            for (int j = 0; j < numWords * numTopics; j++) {
                 wordTopicTable[i] += updateW[j];
             }
             for (int j = 0; j < numTopics; j++) {
@@ -191,7 +128,30 @@ void runLDAAsync(int *w, int *w_start,
 
             memset(num_rec, 0, process_count * sizeof(int));
             MPI_Request update_reqs[2 * process_count - 2];
+            MPI_Status stat;
+            int source_process, message_length;
 
+            for (int i = 0; i < 2 * process_count - 2; i++) {
+                MPI_Status status;
+                MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+                source_process = status.MPI_SOURCE;
+                MPI_Get_count(&status, MPI_INT, &message_length);
+                if (message_length > numTopics) { // Received word topic table
+                    MPI_Recv(updateW, numWords * numTopics, MPI_INT, source_process, 1, MPI_COMM_WORLD, &status);
+                    for (int j = 0; j < numWords * numTopics; j++) {
+                        wordTopicTable[j] += updateW[j];
+                    }
+                    MPI_Isend(wordTopicTable, numWords * numTopics, MPI_INT, source_process, 1, MPI_COMM_WORLD, &update_reqs[source_process * 2 - 2]);
+                } else { // Received topic table
+                    MPI_Recv(updateT, numTopics, MPI_INT, source_process, 2, MPI_COMM_WORLD, &status);
+                    for (int j = 0; j < numTopics; j++) {
+                        topicTable[j] += updateT[j];
+                    }
+                    MPI_Isend(topicTable, numTopics, MPI_INT, source_process, 2, MPI_COMM_WORLD, &update_reqs[source_process * 2 - 1]);
+                }
+            }
+            
+            /*
             int received_count = 0;
             while (received_count < 2 * process_count - 2) {
                 // cout << received_count << endl;
@@ -205,8 +165,8 @@ void runLDAAsync(int *w, int *w_start,
                         if (flag) {
                             received_count++;
                             num_rec[i]++;
-                            MPI_Recv(updateW, numWordTopic, MPI_INT, i, 1, MPI_COMM_WORLD, &status);
-                            for (int j = 0; j < numWordTopic; j++) {
+                            MPI_Recv(updateW, numWords * numTopics, MPI_INT, i, 1, MPI_COMM_WORLD, &status);
+                            for (int j = 0; j < numWords * numTopics; j++) {
                                 wordTopicTable[j] += updateW[j];
                             }
                         }
@@ -226,19 +186,20 @@ void runLDAAsync(int *w, int *w_start,
                         }
                     }
                     if (num_rec[i] == 2) {
-                        MPI_Isend(wordTopicTable, numWordTopic, MPI_INT, i, 1, MPI_COMM_WORLD, &update_reqs[i * 2 - 2]);
+                        MPI_Isend(wordTopicTable, numWords * numTopics, MPI_INT, i, 1, MPI_COMM_WORLD, &update_reqs[i * 2 - 2]);
                         MPI_Isend(topicTable, numTopics, MPI_INT, i, 2, MPI_COMM_WORLD, &update_reqs[i * 2 - 1]);
                     }
                     if (received_count == 2 * process_count - 2) break; 
                 }
             }
             // bar_count = process_count - 1;
+            */
         }
         
 #else 
         globalW = updateW;
         globalT = updateT;
-        for (int i = 0; i < numWordTopic; i++) {
+        for (int i = 0; i < numWords * numTopics; i++) {
             wordTopicTable[i] += globalW[i];
         }
         for (int i = 0; i < numTopics; i++) {
@@ -248,11 +209,7 @@ void runLDAAsync(int *w, int *w_start,
 
         duration += (clock() - start) / (double)CLOCKS_PER_SEC;
 
-        // Output log likelihood at each iteration
-        // if (mpi_master) {
         double lik = getLogLikelihood(wordTopicTable, docTopicTable, alpha, beta, numWords, numDocs, numTopics, process_id, process_count);
-        //    cout << lik << endl;
-        // }
         double global_lik = lik;
 
 #if MPI
