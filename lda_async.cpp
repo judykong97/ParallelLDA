@@ -13,6 +13,8 @@
 
 using namespace std;
 
+int bar_count = 0;
+
 void runLDAAsync(int *w, int *w_start, 
         int totalWords, int numDocs, int numWords, int numTopics, double alpha, double beta, int numIterations, int staleness, int process_id, int process_count) {
 
@@ -67,6 +69,8 @@ void runLDAAsync(int *w, int *w_start,
             topicTable[topic]++;
         }
     }
+
+    int curr_updated = 0;
 
     for (int i = 0; i < numIterations; i++) {
 
@@ -150,15 +154,30 @@ void runLDAAsync(int *w, int *w_start,
             continue;
         }
 
+        // cout << process_id << " " << curr_updated << " " << bar_count << endl;
+        // if (!mpi_master) {
+        //     while (curr_updated && bar_count < process_count - 1);
+        // }
+        // MPI_Barrier(MPI_COMM_WORLD);
+        
+        /*
+        if (bar_count == process_count - 1) {
+            bar_count = 0;
+            curr_updated = 0;
+        }
+        */
+
         MPI_Request wreqs[process_count - 1];
         MPI_Request treqs[process_count - 1];
-        MPI_Status wstats[process_count - 1];
-        MPI_Status tstats[process_count - 1];
+        MPI_Request reqs[2 * process_count - 2];
+        MPI_Status stats[2 * process_count - 2];
         if (!mpi_master) {
             MPI_Isend(updateW, numWords * numTopics, MPI_INT, 0, 1, MPI_COMM_WORLD, &wreqs[process_id - 1]);
             MPI_Isend(updateT, numTopics, MPI_INT, 0, 2, MPI_COMM_WORLD, &treqs[process_id - 1]);
-            MPI_Recv(wordTopicTable, numWords * numTopics, MPI_INT, 0, 1, MPI_COMM_WORLD, &wstats[process_id - 1]);
-            MPI_Recv(topicTable, numTopics, MPI_INT, 0, 2, MPI_COMM_WORLD, &tstats[process_id - 1]);
+            MPI_Irecv(wordTopicTable, numWords * numTopics, MPI_INT, 0, 1, MPI_COMM_WORLD, &reqs[2 * process_id - 2]);
+            MPI_Irecv(topicTable, numTopics, MPI_INT, 0, 2, MPI_COMM_WORLD, &reqs[2 * process_id - 1]);
+            MPI_Waitall(2, reqs + 2 * process_id - 2, stats + 2 * process_id - 2);
+            // curr_updated = 1;
         } else {
 
             for (int j = 0; j < numWords * numTopics; j++) {
@@ -173,8 +192,10 @@ void runLDAAsync(int *w, int *w_start,
 
             int received_count = 0;
             while (received_count < 2 * process_count - 2) {
+                // cout << received_count << endl;
                 for (int i = 1; i < process_count; i++) {
-                    if (num_rec[i] < 2) {
+                    if (num_rec[i] == 2) continue;
+                    // if (num_rec[i] < 2) {
                         int flag = 0;
                         MPI_Status status;
                         MPI_Request request;
@@ -187,7 +208,7 @@ void runLDAAsync(int *w, int *w_start,
                                 wordTopicTable[j] += updateW[j];
                             }
                         }
-                    }
+                    // }
                     if (num_rec[i] < 2) {
                         int flag = 0;
                         MPI_Status status;
@@ -209,6 +230,7 @@ void runLDAAsync(int *w, int *w_start,
                     if (received_count == 2 * process_count - 2) break; 
                 }
             }
+            // bar_count = process_count - 1;
         }
         
 #else 
